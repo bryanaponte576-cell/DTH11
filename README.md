@@ -23,6 +23,6 @@ Este repositorio contiene la implementación de un sistema IoT basado en el micr
 ## 📹 Video Demostrativo
 Puedes ver la demostración en vivo de la captura de datos y la actualización instantánea en la consola de Firebase en el siguiente enlace:
 
-* [Ver Video Demostrativo](https://drive.google.com/file/d/1ZjrKGe835lGu3MLc51pSISN5X2NO85Y7/view?usp=drive_link)
+* [Ver Video Demostrativo](https://drive.google.com/file/d/1YiTJz14FyVzI4VsCNFbN8yK4PyoVPP_R/view?usp=drive_link)
 
 *Desarrollado como parte de las prácticas técnicas de IoT y Redes.*
