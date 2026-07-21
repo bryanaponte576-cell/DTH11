@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Monitoreo IoT - ESP32 & Firebase</title>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Firebase App & Database CDNs (v8) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f4f6f9;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 { color: #333; }
+    .card-container {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    .card {
+      background: #fff;
+      padding: 15px 25px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    .card h3 { margin: 0 0 10px 0; color: #555; }
+    .card p { font-size: 1.8rem; font-weight: bold; margin: 0; }
+    .temp { color: #e74c3c; }
+    .hum { color: #3498db; }
+    .chart-box {
+      width: 100%;
+      max-width: 800px;
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Panel de Monitoreo IoT en Tiempo Real</h1>
+
+  <div class="card-container">
+    <div class="card">
+      <h3>Temperatura</h3>
+      <p class="temp"><span id="tempVal">--</span> °C</p>
+    </div>
+    <div class="card">
+      <h3>Humedad</h3>
+      <p class="hum"><span id="humVal">--</span> %</p>
+    </div>
+  </div>
+
+  <div class="chart-box">
+    <canvas id="iotChart"></canvas>
+  </div>
+
+  <script>
+    // 1. Configuración de Firebase Realtime Database
+    const firebaseConfig = {
+      databaseURL: "https://esp32-sensor-90474-default-rtdb.firebaseio.com/"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    // 2. Credenciales del Bot de Telegram (REEMPLAZA CON TUS DATOS DEL PASO 1)
+    const TELEGRAM_BOT_TOKEN = "8609793978:AAHcSOF6VxCtLVGSJFg4uNNrY2C4RxW4Tes";
+    const TELEGRAM_CHAT_ID = "6179026824";
+    const UMBRAL_TEMPERATURA = 30.0; // Umbral crítico para enviar alerta
+    let alertaEnviada = false;
+
+    // 3. Inicialización del Gráfico con Chart.js
+    const ctx = document.getElementById('iotChart').getContext('2d');
+    const chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [], 
+        datasets: [
+          {
+            label: 'Temperatura (°C)',
+            borderColor: '#e74c3c',
+            backgroundColor: 'rgba(231, 76, 60, 0.1)',
+            data: [],
+            fill: true,
+            tension: 0.3
+          },
+          {
+            label: 'Humedad (%)',
+            borderColor: '#3498db',
+            backgroundColor: 'rgba(52, 152, 219, 0.1)',
+            data: [],
+            fill: true,
+            tension: 0.3
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          x: { title: { display: true, text: 'Hora de Lectura' } },
+          y: { beginAtZero: true }
+        }
+      }
+    });
+
+    // 4. Función para enviar alerta a Telegram mediante la API REST
+    function enviarAlertaTelegram(temperatura) {
+      const mensaje = `⚠️ *ALERTA CRÍTICA DE TEMPERATURA* ⚠️\n\nLa temperatura actual ha superado el umbral asignado: *${temperatura} °C*.\n¡Por favor verificar el entorno!`;
+      const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage?chat_id=${TELEGRAM_CHAT_ID}&text=${encodeURIComponent(mensaje)}&parse_mode=Markdown`;
+
+      fetch(url)
+        .then(res => res.json())
+        .then(data => {
+          if (data.ok) {
+            console.log("Alerta enviada a Telegram con éxito.");
+          } else {
+            console.error("Error al enviar alerta a Telegram:", data);
+          }
+        })
+        .catch(err => console.error("Error de red:", err));
+    }
+
+    // 5. Escuchar cambios en tiempo real desde Firebase
+    const ambienteRef = database.ref('ambiente');
+    ambienteRef.on('value', (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const temp = data.temperatura;
+        const hum = data.humedad;
+        const horaActual = new Date().toLocaleTimeString();
+
+        // Actualizar valores numéricos en pantalla
+        document.getElementById('tempVal').innerText = temp;
+        document.getElementById('humVal').innerText = hum;
+
+        // Actualizar gráfico Chart.js (mantener solo las últimas 10 lecturas)
+        if (chart.data.labels.length >= 10) {
+          chart.data.labels.shift();
+          chart.data.datasets[0].data.shift();
+          chart.data.datasets[1].data.shift();
+        }
+
+        chart.data.labels.push(horaActual);
+        chart.data.datasets[0].data.push(temp);
+        chart.data.datasets[1].data.push(hum);
+        chart.update();
+
+        // Verificación del umbral de temperatura para enviar la alerta
+        if (temp > UMBRAL_TEMPERATURA && !alertaEnviada) {
+          enviarAlertaTelegram(temp);
+          alertaEnviada = true; // Previene envío múltiple de alertas consecutivas
+        } else if (temp <= UMBRAL_TEMPERATURA) {
+          alertaEnviada = false; // Restablece el estado si la temperatura baja
+        }
+      }
+    });
+  </script>
+</body>
+</html>
