@@ -20,5 +20,9 @@ Este repositorio contiene la implementación de un sistema IoT basado en el micr
 1. **Conexión Wi-Fi:** Configuración en modo *Station* (STA) para conectarse a una red local.
 2. **Lectura de Sensores:** Mapeo periódico de temperatura (°C) y humedad (%) desde el sensor DHT11.
 3. **Persistencia en la Nube:** Envío seguro del paquete JSON a Firebase Realtime Database mediante protocolo HTTPS REST (`PATCH`).
+## 📹 Video Demostrativo
+Puedes ver la demostración en vivo de la captura de datos y la actualización instantánea en la consola de Firebase en el siguiente enlace:
+
+* [Ver Video Demostrativo]((https://drive.google.com/file/d/1ZjrKGe835lGu3MLc51pSISN5X2NO85Y7/view?usp=drive_link))
 
 *Desarrollado como parte de las prácticas técnicas de IoT y Redes.*
